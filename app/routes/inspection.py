@@ -1,6 +1,7 @@
 from fastapi import File, UploadFile, HTTPException,APIRouter,Depends
 from fastapi.responses import JSONResponse
 from app.database import get_db
+from typing import List
 from sqlalchemy.orm import Session
 from app.services.analysis_services import generate_response_image,generate_response_video
 from app.services.prompt_generator import inspection_bedroom_prompt
@@ -22,41 +23,93 @@ def safe_json_loads(response_text):
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON response")
 
+
+
 @router.post("/analyze/image/")
-async def analyze_image(task_id: int, file: UploadFile = File(...),db: Session=Depends(get_db)):
-    file_path = f"temp_{file.filename}"
-    unique_filename = f"inspection_image_{uuid.uuid4()}_{file.filename}"
-    file_path = os.path.join(UPLOAD_DIR_IMG, unique_filename)
+async def analyze_image(
+    task_id: int, 
+    files: List[UploadFile] = File(...),  
+    db: Session = Depends(get_db)
+):
+    file_paths = []
+    results = []
+
+    for file in files:
+        unique_filename = f"inspection_image_{uuid.uuid4()}_{file.filename}"
+        file_path = os.path.join(UPLOAD_DIR_IMG, unique_filename)
 
         # Save the uploaded image
-    with open(file_path, "wb") as out_file:
-        out_file.write(await file.read())
+        with open(file_path, "wb") as out_file:
+            out_file.write(await file.read())
 
-    # Analyze the image
-    analysis_result =await generate_response_image(file_path, prompt= inspection_bedroom_prompt,media_type="image", task_id=task_id,db=db )
+        file_paths.append(file_path)
 
-    # Parse the analysis result
-    analysis_result = safe_json_loads(analysis_result)
-    if not analysis_result:
-        raise HTTPException(status_code=500, detail="Failed to analyze the image")
+    if not file_paths:
+        raise HTTPException(status_code=400, detail="No files were uploaded")
 
-    return JSONResponse(content=analysis_result)
+    # Process each image separately
+    for file_path in file_paths:
+        analysis_result = await generate_response_image(
+            file_path, 
+            prompt=inspection_bedroom_prompt, 
+            media_type="image", 
+            task_id=task_id, 
+            db=db
+        )
+
+        # Parse the analysis result
+        analysis_result = safe_json_loads(analysis_result)
+        if not analysis_result:
+            return "Couldnt process image"  
+
+        results.append(analysis_result)
+
+    if not results:
+        raise HTTPException(status_code=500, detail="Failed to analyze images")
+
+    return JSONResponse(content={"results": results})
+
+
 @router.post("/analyze/video/")
-async def analyze_video(task_id: int, file: UploadFile = File(...),db: Session=Depends(get_db)):
-    #file_path = f"temp_{file.filename}"
-    unique_filename = f"inspection_video_{uuid.uuid4()}_{file.filename}"
-    file_path = os.path.join(UPLOAD_DIR_VID, unique_filename)
+async def analyze_video(
+    task_id: int, 
+    files: List[UploadFile] = File(...),  # Allow multiple video uploads
+    db: Session = Depends(get_db)
+):
+    file_paths = []
+    results = []
 
-        # Save the uploaded image
-    with open(file_path, "wb") as out_file:
-        out_file.write(await file.read())
+    for file in files:
+        unique_filename = f"inspection_video_{uuid.uuid4()}_{file.filename}"
+        file_path = os.path.join(UPLOAD_DIR_VID, unique_filename)
 
-    # Pass only the file path to generate_response_video
-    analysis_result =await generate_response_video(file_path, prompt=inspection_bedroom_prompt,media_type="video", task_id=task_id, db=db)
+        # Save the uploaded video
+        with open(file_path, "wb") as out_file:
+            out_file.write(await file.read())
 
-    # Parse the analysis result
-    analysis_result = safe_json_loads(analysis_result)
-    if not analysis_result:
-        raise HTTPException(status_code=500, detail="Failed to analyze the video")
+        file_paths.append(file_path)
 
-    return JSONResponse(content=analysis_result)
+    if not file_paths:
+        raise HTTPException(status_code=400, detail="No files were uploaded")
+
+    # Process each video separately
+    for file_path in file_paths:
+        analysis_result = await generate_response_video(
+            file_path, 
+            prompt=inspection_bedroom_prompt, 
+            media_type="video", 
+            task_id=task_id, 
+            db=db
+        )
+
+        # Parse the analysis result
+        analysis_result = safe_json_loads(analysis_result)
+        if not analysis_result:
+            return "Coundnt process the video"
+
+        results.append(analysis_result)
+
+    if not results:
+        raise HTTPException(status_code=500, detail="Failed to analyze videos")
+
+    return JSONResponse(content={"results": results})
