@@ -29,7 +29,7 @@ async def analyze_images(
     try:
         results = []
         for media_file in media_files:
-            unique_filename = f"detection_image_{uuid.uuid4()}_{media_file.filename}"
+            unique_filename = f"maintenance_image_{uuid.uuid4()}_{media_file.filename}"
             file_path = os.path.join(UPLOAD_DIR_IMG, unique_filename)
 
             
@@ -45,24 +45,45 @@ async def analyze_images(
     except Exception as e:
         db.rollback()
         return {"error": str(e)}, 500
-
 @router.post("/video")
-async def analyze_video(task_id: int, media_file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def analyze_video(
+    task_id: int, 
+    media_files: List[UploadFile] = File(...),  # Allow multiple videos
+    db: Session = Depends(get_db)
+):
     try:
-        unique_filename = f"detection_video_{media_file.filename}_{uuid.uuid4()}.mp4"
-        file_path = os.path.join(UPLOAD_DIR_VID, unique_filename)
-        with open(file_path, "wb") as f:
-            f.write(await media_file.read())
+        file_paths = []
+        results = []
 
-        result = await maintenance_check_video(file_path=file_path, media_type="video", task_id=task_id, db=db)
-        print(result)
-        return JSONResponse(content={"result": result})
+        for media_file in media_files:
+            unique_filename = f"maintenance_video_{media_file.filename}_{uuid.uuid4()}.mp4"
+            file_path = os.path.join(UPLOAD_DIR_VID, unique_filename)
+
+            # Save the uploaded video
+            with open(file_path, "wb") as f:
+                f.write(await media_file.read())
+
+            file_paths.append(file_path)
+
+        if not file_paths:
+            raise HTTPException(status_code=400, detail="No files were uploaded")
+
+        # Process each video separately
+        for file_path in file_paths:
+            result = await maintenance_check_video(
+                file_path=file_path, 
+                media_type="video", 
+                task_id=task_id, 
+                db=db
+            )
+            if result:
+                results.append({"file": file_path, "analysis": result})
+
+        if not results:
+            raise HTTPException(status_code=500, detail="Failed to analyze videos")
+
+        return JSONResponse(content={"results": results})
+
     except Exception as e:
         db.rollback()
         return JSONResponse(content={"error": str(e)}, status_code=500)
-
-
-
-
- ###
-
