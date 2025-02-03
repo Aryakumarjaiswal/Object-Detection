@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+sqlalchemy
+pymysql
+python-dotenv
+google-generativeai
+cryptography
+Pillow
+python-multipart
+httpx   
+mysql-connector-python
