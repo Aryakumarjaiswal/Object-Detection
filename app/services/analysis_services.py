@@ -496,7 +496,7 @@ async def generate_response_image(image_file, prompt, media_type, task_id, db:Se
         response_json = json.loads(response.text)
         inspection_check = InspectionCheck(
             upload_id=upload_db.upload_id,
-            status=f"Rating: {response_json["ai_rating"]}, Condition: {response_json["condition"]}, Reasoning: {response_json["reasoning"]}",
+            status=f"Rating: {response_json["ai_rating"]}, Condition: {response_json["condition"]}",
             general_description=response_json["description"]
         )
         
@@ -573,7 +573,7 @@ async def generate_response_video(video_file_path: str, prompt: str, media_type,
         response_json = json.loads(response.text)
         inspection_check = InspectionCheck(
             upload_id=upload_db.upload_id,
-            status=f"Rating: {response_json["ai_rating"]}, Condition: {response_json["condition"]}, Reasoning: {response_json["reasoning"]}",
+            status=f"Rating: {response_json["ai_rating"]}, Condition: {response_json["condition"]}",
             general_description=response_json["description"]
         )
         
