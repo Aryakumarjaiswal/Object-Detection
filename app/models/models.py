@@ -87,11 +87,10 @@ class MaintenanceCheck(Base):
     id = Column(Integer, primary_key=True, index=True)
     
     upload_id = Column(Integer, ForeignKey("media_upload.upload_id"))
-    status = Column(String(255))
-    general_description = Column(String(1000))
+    status =  Column(Text)
+    general_description = Column(Text)
     created_at = Column(TIMESTAMP, default=func.now())
     
-    # Relationship with Upload table if needed
     media_upload = relationship("MediaUpload", back_populates="maintenance_checks")   
 
 class InspectionCheck(Base):
@@ -100,9 +99,8 @@ class InspectionCheck(Base):
     id = Column(Integer, primary_key=True, index=True)
     
     upload_id = Column(Integer, ForeignKey("media_upload.upload_id"))
-    status = Column(String(255))
-    general_description = Column(String(1000))
+    status = Column(Text)
+    general_description = Column(Text)
     created_at = Column(TIMESTAMP, default=func.now())
-    
-    # Relationship with Upload table if needed
+
     media_upload = relationship("MediaUpload", back_populates="inspection_checks")   
