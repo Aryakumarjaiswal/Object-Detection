@@ -41,7 +41,7 @@ UPLOAD_DIR_BOUNDING_BOX_IMG = "static/uploads/bounding_box_images/"
 os.makedirs(UPLOAD_DIR_BOUNDING_BOX_IMG, exist_ok=True)
 
 BASE_URL_PATH =  os.getenv("BASE_URL_PATH1")
-print(f"BASE_URL_PATH: {BASE_URL_PATH}")
+#print(f"BASE_URL_PATH: {BASE_URL_PATH}")
 ################################################### IMAGE PROCESSING ###################################################
 
 async def process_image(file_path, media_type, task_id, db: Session):
@@ -385,6 +385,7 @@ async def process_maintenance_check(file_path, media_type, task_id, db: Session)
     except json.JSONDecodeError as e:
         raise HTTPException(status_code=500, detail="Failed to parse response JSON") from e
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 async def maintenance_check_video(file_path, media_type, task_id,  db:Session=Depends(get_db)):
 
@@ -460,7 +461,7 @@ async def maintenance_check_video(file_path, media_type, task_id,  db:Session=De
         )
 
 
-            ######################## for Inspection ###########################
+#################################### for Inspection ########################################################
 async def generate_response_image(image_file, prompt, media_type, task_id, db:Session=Depends(get_db)):
     # Define the prompt for Gemini model
     try:
@@ -496,7 +497,7 @@ async def generate_response_image(image_file, prompt, media_type, task_id, db:Se
         response_json = json.loads(response.text)
         inspection_check = InspectionCheck(
             upload_id=upload_db.upload_id,
-            status=f"Rating: {response_json["ai_rating"]}, Condition: {response_json["condition"]}",
+            status=f"Rating: {response_json["ai_rating"]}, Condition: {response_json["condition"]}, Reasoning :{response_json["reasoning"]}",
             general_description=response_json["description"]
         )
         
@@ -504,12 +505,12 @@ async def generate_response_image(image_file, prompt, media_type, task_id, db:Se
         db.commit()
         db.refresh(inspection_check)
         
-        print(type(response_json))
-        print(response_json)
+       
         response_json['image_path']=f"{BASE_URL_PATH}/{os.path.normpath(image_file).replace(os.sep, '/')}"#"image_file":image_file
         return response_json
 
     except Exception as e:
+        db.rollback()
         return {"error": f"Error in generating response from Gemini: {str(e)}"}
 
 async def generate_response_video(video_file_path: str, prompt: str, media_type, task_id,  db:Session=Depends(get_db)):
@@ -552,7 +553,7 @@ async def generate_response_video(video_file_path: str, prompt: str, media_type,
             temp_video.flush()
             temp_video_path = temp_video.name
 
-        # Upload the video
+        
         video_upload = genai.upload_file(path=temp_video_path, mime_type=mime_type)
 
         # Polling to check status of video processing
@@ -569,11 +570,11 @@ async def generate_response_video(video_file_path: str, prompt: str, media_type,
         response = model.generate_content(
             [prompt, video_upload], request_options={"timeout": 600}
         )
-        print(response)
+        
         response_json = json.loads(response.text)
         inspection_check = InspectionCheck(
             upload_id=upload_db.upload_id,
-            status=f"Rating: {response_json["ai_rating"]}, Condition: {response_json["condition"]}",
+            status=f"Rating: {response_json["ai_rating"]}, Condition: {response_json["condition"]}, Reasoning: {response_json["reasoning"]}",
             general_description=response_json["description"]
         )
         
@@ -584,11 +585,12 @@ async def generate_response_video(video_file_path: str, prompt: str, media_type,
         # Cleanup
         genai.delete_file(video_upload.name)
         os.remove(temp_video_path)
-        #os.remove(video_file_path)  # Delete the uploaded video after processing
+        
         
         return response_json
 
     except Exception as e:
+        db.rollback()
         return {"error": f"Error in generating response from Gemini: {str(e)}"}
 
 
