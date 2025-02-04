@@ -1,3 +1,5 @@
+
+
 from fastapi import File, UploadFile, HTTPException,APIRouter,Depends
 from fastapi.responses import JSONResponse
 from app.database import get_db
@@ -60,7 +62,7 @@ async def analyze_image(
         # Parse the analysis result
         analysis_result = safe_json_loads(analysis_result)
         if not analysis_result:
-            return "Couldnt process image"  
+            return "Couldnt process analysis result"  
 
         results.append(analysis_result)
 
@@ -105,7 +107,7 @@ async def analyze_video(
         # Parse the analysis result
         analysis_result = safe_json_loads(analysis_result)
         if not analysis_result:
-            return "Coundnt process the video"
+            return "Couldnt process analysis result"
 
         results.append(analysis_result)
 
