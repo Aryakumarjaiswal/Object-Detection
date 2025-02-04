@@ -47,20 +47,30 @@ async def analyze_images(
         return {"error": str(e)}, 500
 
 @router.post("/video")
-async def analyze_video(task_id: int, media_file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def analyze_videos(
+    task_id: int, 
+    media_files: List[UploadFile] = File(...), 
+    db: Session = Depends(get_db)
+):
     try:
-        unique_filename = f"detection_video_{media_file.filename}_{uuid.uuid4()}.mp4"
-        file_path = os.path.join(UPLOAD_DIR_VID, unique_filename)
-        with open(file_path, "wb") as f:
-            f.write(await media_file.read())
+        results = []
+        for media_file in media_files:
+            unique_filename = f"detection_video_{media_file.filename}_{uuid.uuid4()}.mp4"
+            file_path = os.path.join(UPLOAD_DIR_VID, unique_filename)
+            
+            with open(file_path, "wb") as f:
+                f.write(await media_file.read())
 
-        result = await maintenance_check_video(file_path=file_path, media_type="video", task_id=task_id, db=db)
+            result = await maintenance_check_video(file_path=file_path, media_type="video", task_id=task_id, db=db)
+            results.append(result)
         
-        return JSONResponse(content={"result": result})
+        return JSONResponse(content={"results": results})
+
     except Exception as e:
         db.rollback()
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
+ ###
 
 
 
